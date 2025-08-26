@@ -1,247 +1,430 @@
-# Frontend Components
+# Frontend Components Implementation Guide
 
 ## Overview
 
-This directory contains the core UI components for the Claude Trace frontend application. These components are built using [Lit](https://lit.dev/), a lightweight web components library, and are designed to visualize and interact with conversation trace data from AI models.
+This directory contains the core UI components that visualize and interact with conversation trace data. Each component is a specialized Lit web component designed for specific visualization tasks, following consistent patterns for type safety, security, and performance.
 
-The components follow a data-driven approach, accepting typed props and rendering immutable views of conversation traces, raw API pairs, and JSON data structures. They prioritize type safety and avoid the use of `any` types wherever possible.
-
-## Structure
+## Component Architecture
 
 ```
-frontend/src/components/
-├── json-view.ts              # Generic JSON data visualization component
-├── raw-pairs-view.ts         # Raw API request/response pair viewer
-└── simple-conversation-view.ts # Main conversation trace viewer
+components/
+├── simple-conversation-view.ts # Primary conversation visualization
+├── raw-pairs-view.ts           # HTTP request/response debugging
+└── json-view.ts                # Structured data inspection
 ```
 
-## Key Components
+## Implementation Patterns
 
-### JsonView (`json-view.ts`)
+### Component Base Pattern
 
-**Purpose**: Displays processed conversation pairs in a collapsible JSON format for debugging and detailed inspection.
-
-**Key Features**:
-
-- Collapsible sections for request and response data
-- Streaming indicator support
-- Model and timestamp metadata display
-- Syntax-highlighted JSON formatting
-
-**Props**:
-
-- `processedPairs: ProcessedPair[]` - Array of processed conversation pairs from `SharedConversationProcessor`
-
-**Key Methods**:
-
-- `formatJson(obj: any): string` - Formats objects as JSON strings with error handling
-- `toggleContent(e: Event): void` - Handles expand/collapse functionality
-
-**Usage Example**:
-
-```html
-<json-view .processedPairs="${processedPairs}"></json-view>
-```
-
-### RawPairsView (`raw-pairs-view.ts`)
-
-**Purpose**: Renders raw HTTP request/response pairs with detailed API call information, particularly useful for debugging API interactions.
-
-**Key Features**:
-
-- HTTP method and URL path display
-- Model name extraction and normalization
-- Server-Sent Events (SSE) visualization
-- Status code and timestamp metadata
-- Bedrock and standard API format support
-
-**Props**:
-
-- `rawPairs: RawPair[]` - Array of raw request/response pairs from the logging system
-
-**Key Methods**:
-
-- `getModelName(pair: RawPair): string` - Extracts and normalizes model names from various API formats
-- `normalizeModelName(modelName: string): string` - Converts Bedrock and other model formats to display names
-- `getUrlPath(url: string): string` - Extracts pathname from URLs
-- `formatJson(obj: any): string` - Safe JSON formatting with fallback handling
-
-**Type Safety Notes**:
-
-- Uses proper `RawPair` type instead of `any`
-- Handles null responses gracefully with type guards
-- Model name extraction uses string matching with proper fallbacks
-
-### SimpleConversationView (`simple-conversation-view.ts`)
-
-**Purpose**: The primary conversation visualization component that renders complete conversation threads with advanced formatting, tool usage, and interactive features.
-
-**Key Features**:
-
-- Complete conversation thread display
-- System prompt and tools visualization
-- Markdown content rendering with XSS protection
-- Tool usage tracking and diff visualization
-- Collapsible sections and interactive content
-- System reminder extraction and highlighting
-- Compacted conversation support
-
-**Props**:
-
-- `conversations: SimpleConversation[]` - Array of processed conversations from `SharedConversationProcessor`
-
-**Core Type Definitions**:
-
-- Uses `SimpleConversation` from `shared-conversation-processor`
-- Leverages proper Anthropic SDK types: `MessageParam`, `ContentBlock`, `Message`, etc.
-- Avoids `any` types through proper type imports from `@anthropic-ai/sdk`
-
-**Key Methods**:
-
-#### Content Formatting
-
-- `formatContent(content: string | ContentBlockParam[], toolResults?: Record<string, any>): TemplateResult` - Main content formatter
-- `formatStringContent(content: string): TemplateResult` - Handles text content with system reminder extraction
-- `formatResponseContent(response: Message): TemplateResult` - Formats AI assistant responses
-- `formatSystem(system: string | TextBlockParam[] | undefined): string` - System prompt formatter
-
-#### Tool Usage Visualization
-
-- `renderToolContainer(toolUse: any, toolResult?: any, options?: object): TemplateResult` - Tool usage wrapper
-- `renderToolUseContent(toolUse: any): TemplateResult` - Tool parameter display with special handling for different tool types
-- `renderToolResult(toolResult: any, toolUse?: any): TemplateResult` - Tool execution result display
-- `getToolDisplayName(toolUse: any, toolResult?: any): TemplateResult` - Tool name formatting with parameter preview
-
-#### Diff Visualization
-
-- `renderDiff(oldStr: string, newStr: string): TemplateResult[]` - Line-by-line diff rendering for file edits
-- Uses the `diff` library for accurate change detection
-
-#### Interactive Features
-
-- `handleToggle(e: Event, options?: object): void` - Generic toggle handler for collapsible content
-- `toggleContent(e: Event): void` - Standard content visibility toggle
-- `toggleWriteContent(e: Event): void` - Special handler for file write operations
-
-#### Utility Methods
-
-- `renderCollapsibleSection(title: string, content: TemplateResult, options?: object): TemplateResult` - Reusable collapsible UI pattern
-- `wrapInScrollable(content: TemplateResult | string, usePreFormatting?: boolean): TemplateResult` - Scrollable content wrapper
-- `unescapeHtml(str: string): string` - Safe HTML unescaping for display
-
-## Dependencies
-
-### Internal Dependencies
-
-- `../../../src/shared-conversation-processor` - Core conversation processing logic and type definitions
-- `../../../src/types` - Application-specific type definitions
-- `../utils/markdown` - Safe markdown to HTML conversion utility
-
-### External Dependencies
-
-- `lit` - Web components framework
-- `lit/decorators.js` - Property decorators for reactive updates
-- `lit/directives/unsafe-html.js` - Controlled HTML rendering for markdown content
-- `diff` - Text diffing library for edit visualization
-- `@anthropic-ai/sdk/resources/messages` - Official Anthropic API types
-
-## Patterns & Conventions
-
-### Type Safety
-
-- **Strict Type Usage**: All components use proper TypeScript interfaces instead of `any`
-- **SDK Type Integration**: Leverages official `@anthropic-ai/sdk` types for API data structures
-- **Null Safety**: Proper null/undefined checks throughout all components
-- **Type Guards**: Runtime type validation for dynamic content
-
-### Component Architecture
-
-- **Lit Web Components**: Uses modern web component standards with Lit framework
-- **Shadow DOM Disabled**: Components use `createRenderRoot() { return this; }` to access global CSS
-- **Reactive Properties**: Uses `@property()` decorators for automatic re-rendering
-- **Event-Driven**: Interactive features use proper event handling with type-safe event objects
-
-### Content Security
-
-- **XSS Prevention**: Markdown rendering uses proper HTML escaping via `markdownToHtml` utility
-- **Controlled HTML**: Uses `unsafeHTML` directive only for pre-processed, safe content
-- **Input Validation**: JSON parsing includes try-catch blocks with fallback handling
-
-### UI/UX Patterns
-
-- **Collapsible Content**: Consistent expand/collapse pattern across all views
-- **Progressive Disclosure**: Important information visible by default, details hidden behind toggles
-- **Syntax Highlighting**: JSON and code content use appropriate formatting
-- **Responsive Design**: Content wraps and scrolls appropriately for different screen sizes
-
-## Usage Examples
-
-### Basic Component Usage
+All components follow this standardized implementation pattern:
 
 ```typescript
-// In a Lit component or HTML template
-html`
-	<json-view .processedPairs=${this.processedPairs}></json-view>
-	<raw-pairs-view .rawPairs=${this.rawPairs}></raw-pairs-view>
-	<simple-conversation-view .conversations=${this.conversations}></simple-conversation-view>
-`;
+@customElement("component-name")
+export class ComponentName extends LitElement {
+	@property({ type: Array }) data: DataType[] = [];
+
+	createRenderRoot() {
+		return this; // Access global Tailwind CSS
+	}
+
+	render(): TemplateResult {
+		if (!this.data?.length) {
+			return html`<div class="text-vs-text-muted">No data available</div>`;
+		}
+
+		return html`<div class="component-container">${this.renderContent()}</div>`;
+	}
+}
 ```
 
-### Integration with Data Processing
+**Critical Implementation Requirements**:
+
+- **Shadow DOM Disabled**: Always return `this` from `createRenderRoot()` for global CSS access
+- **Empty State Handling**: Provide meaningful empty states for better UX
+- **Type Safety**: Use proper TypeScript interfaces, avoid `any` types
+- **Consistent Styling**: Use Tailwind classes with VS Code theme variables
+
+## Component-Specific Implementation
+
+### SimpleConversationView Implementation
+
+**Purpose**: Primary conversation visualization with advanced formatting, tool tracking, and interactive features.
+
+**Key Implementation Methods**:
 
 ```typescript
-import { SharedConversationProcessor } from "../../../src/shared-conversation-processor";
-import { RawPair } from "../../../src/types";
+// Content formatting with tool result integration
+private formatContent(content: string | ContentBlockParam[], toolResults?: Record<string, any>): TemplateResult {
+    if (typeof content === 'string') {
+        return this.formatStringContent(content);
+    }
 
-const processor = new SharedConversationProcessor();
-const processedPairs = processor.processRawPairs(rawPairs);
-const conversations = processor.mergeConversations(processedPairs);
+    return html`
+        <div class="content-blocks">
+            ${content.map(block => this.renderContentBlock(block, toolResults))}
+        </div>
+    `;
+}
 
-// Render components with processed data
-const template = html` <simple-conversation-view .conversations=${conversations}></simple-conversation-view> `;
+// Tool container with collapsible sections
+private renderToolContainer(toolUse: any, toolResult?: any, options = {}): TemplateResult {
+    const { showInput = true, showResult = true } = options;
+    const toolName = this.getToolDisplayName(toolUse, toolResult);
+
+    return html`
+        <div class="tool-container bg-vs-bg-secondary rounded-md border border-gray-600 mb-4">
+            <button
+                class="tool-header w-full text-left p-3 flex items-center justify-between"
+                @click=${this.toggleContent}
+            >
+                <span class="tool-name text-vs-function">${toolName}</span>
+                <span class="toggle-icon">▼</span>
+            </button>
+            <div class="tool-content hidden p-3 pt-0">
+                ${showInput ? this.renderToolUseContent(toolUse) : ''}
+                ${showResult && toolResult ? this.renderToolResult(toolResult, toolUse) : ''}
+            </div>
+        </div>
+    `;
+}
 ```
 
-## Type Safety Notes
+**Advanced Features Implementation**:
 
-### Critical Type Safety Improvements
+1. **Diff Visualization**: Uses the `diff` library for file edit tracking
+2. **System Reminder Extraction**: Parses system reminders from content
+3. **Tool Parameter Preview**: Shows abbreviated tool parameters in headers
+4. **Write Content Handling**: Special handling for file write operations
 
-The components follow the project guideline of avoiding `any` types wherever possible:
+**Interactive Features**:
 
-1. **ProcessedPair Interface**: Used instead of generic objects for conversation data
-2. **RawPair Interface**: Proper typing for raw API request/response pairs
-3. **Anthropic SDK Types**: Direct import and usage of official API types
-4. **Event Typing**: Proper `Event` and `HTMLElement` typing for interactive features
+```typescript
+// Generic toggle handler with flexible options
+private handleToggle(e: Event, options: {
+    type?: "content" | "write" | "custom";
+    targetSelector?: string;
+    customHandler?: (element: HTMLElement, isHidden: boolean) => void;
+} = {}): void {
+    const currentElement = e.currentTarget as HTMLElement;
+    const nextElement = currentElement.nextElementSibling as HTMLElement;
 
-### Areas for Continued Type Safety Enhancement
+    if (nextElement) {
+        const isHidden = nextElement.style.display === "none";
+        nextElement.style.display = isHidden ? "block" : "none";
 
-While the components generally follow good type safety practices, there are a few areas where type improvements could be made:
+        // Update toggle icon
+        const toggleIcon = currentElement.querySelector('.toggle-icon');
+        if (toggleIcon) {
+            toggleIcon.textContent = isHidden ? "▲" : "▼";
+        }
+    }
+}
+```
 
-1. **Tool Use Handling**: Some tool-related methods use `any` for flexibility - could be improved with union types
-2. **JSON Formatting**: The `formatJson` method parameter uses `any` but could use `unknown` for better safety
-3. **Dynamic Property Access**: Some dynamic property access could benefit from mapped types or type assertions
+### RawPairsView Implementation
 
-## Notes
+**Purpose**: Technical debugging interface for raw HTTP request/response pairs.
 
-### Performance Considerations
+**Key Implementation Methods**:
 
-- Components use Lit's efficient rendering system with change detection
-- Large JSON objects are formatted on-demand with caching considerations
-- DOM manipulation is minimized through reactive property updates
+```typescript
+// Model name extraction with normalization
+private getModelName(pair: RawPair): string {
+    if (pair.request?.body?.model) {
+        return this.normalizeModelName(pair.request.body.model);
+    }
 
-### Styling Integration
+    // Fallback extraction from URL path
+    const url = pair.request?.url || '';
+    if (url.includes('bedrock-runtime')) {
+        return 'bedrock-claude';
+    }
 
-- Components disable Shadow DOM to integrate with global Tailwind CSS classes
-- VS Code theme color variables are used throughout for consistent styling
-- Responsive design patterns ensure usability across different screen sizes
+    return 'unknown';
+}
 
-### Accessibility
+// Model name normalization for consistent display
+private normalizeModelName(modelName: string): string {
+    if (modelName.startsWith('anthropic.claude')) {
+        return modelName.replace('anthropic.claude-', 'claude-');
+    }
+    return modelName;
+}
 
-- Keyboard navigation support for interactive elements
-- Proper ARIA labels for screen readers (could be enhanced further)
-- Color contrast considerations with VS Code theme integration
+// Safe JSON formatting with error handling
+private formatJson(obj: any): string {
+    try {
+        return JSON.stringify(obj, null, 2);
+    } catch (error) {
+        console.warn('Failed to stringify object:', error);
+        return String(obj);
+    }
+}
+```
 
-### Browser Compatibility
+**HTTP Method and Status Visualization**:
 
-- Modern browser features are used (ES modules, custom elements)
-- Polyfills may be needed for older browser support
-- Progressive enhancement approach for advanced features
+```typescript
+// HTTP method styling
+private getMethodClass(method: string): string {
+    const methodMap: Record<string, string> = {
+        'GET': 'text-green-400',
+        'POST': 'text-blue-400',
+        'PUT': 'text-yellow-400',
+        'DELETE': 'text-red-400'
+    };
+    return methodMap[method] || 'text-vs-text';
+}
+
+// Status code styling
+private getStatusClass(statusCode: number): string {
+    if (statusCode >= 200 && statusCode < 300) return 'text-green-400';
+    if (statusCode >= 400 && statusCode < 500) return 'text-yellow-400';
+    if (statusCode >= 500) return 'text-red-400';
+    return 'text-vs-text';
+}
+```
+
+### JsonView Implementation
+
+**Purpose**: Structured data inspection with collapsible JSON formatting.
+
+**Key Implementation Methods**:
+
+```typescript
+// Collapsible JSON structure rendering
+private renderProcessedPair(pair: ProcessedPair, index: number): TemplateResult {
+    const modelName = pair.model || 'unknown';
+    const timestamp = pair.request?.timestamp ?
+        new Date(pair.request.timestamp).toLocaleString() : 'Unknown';
+
+    return html`
+        <div class="processed-pair border border-vs-bg-secondary rounded-lg mb-4">
+            <button
+                class="pair-header w-full text-left p-4 bg-vs-bg-secondary rounded-t-lg"
+                @click=${this.toggleContent}
+            >
+                <div class="flex justify-between items-center">
+                    <span class="text-vs-function">Pair ${index + 1}</span>
+                    <div class="text-sm text-vs-text-muted">
+                        ${modelName} • ${timestamp}
+                        ${pair.isStreaming ? html`<span class="text-vs-accent"> • Streaming</span>` : ''}
+                    </div>
+                </div>
+            </button>
+            <div class="pair-content hidden p-4">
+                ${this.renderJsonSections(pair)}
+            </div>
+        </div>
+    `;
+}
+
+// JSON section rendering with syntax highlighting
+private renderJsonSections(pair: ProcessedPair): TemplateResult {
+    return html`
+        <div class="json-sections space-y-4">
+            <div class="json-section">
+                <h4 class="text-vs-accent font-medium mb-2">Request</h4>
+                <pre class="bg-vs-bg p-3 rounded text-sm overflow-x-auto">
+                    <code>${this.formatJson(pair.request)}</code>
+                </pre>
+            </div>
+            <div class="json-section">
+                <h4 class="text-vs-accent font-medium mb-2">Response</h4>
+                <pre class="bg-vs-bg p-3 rounded text-sm overflow-x-auto">
+                    <code>${this.formatJson(pair.response)}</code>
+                </pre>
+            </div>
+        </div>
+    `;
+}
+```
+
+## Security Implementation Patterns
+
+### XSS Prevention in Components
+
+**Content Sanitization Pattern**:
+
+```typescript
+import { markdownToHtml } from '../utils/markdown';
+
+// Safe content rendering
+private renderUserContent(content: string): TemplateResult {
+    const sanitizedHtml = markdownToHtml(content);
+    return html`<div class="user-content">${unsafeHTML(sanitizedHtml)}</div>`;
+}
+
+// Direct text rendering (automatically escaped by Lit)
+private renderSystemText(text: string): TemplateResult {
+    return html`<div class="system-text">${text}</div>`;
+}
+```
+
+**Input Validation Pattern**:
+
+```typescript
+// Type-safe property validation
+private validateData(data: unknown): data is RequiredDataType {
+    return Array.isArray(data) && data.every(item =>
+        typeof item === 'object' &&
+        item !== null &&
+        'requiredProperty' in item
+    );
+}
+
+// Safe data processing
+connectedCallback(): void {
+    super.connectedCallback();
+
+    if (!this.validateData(this.data)) {
+        console.warn('Invalid data provided to component');
+        this.data = [];
+    }
+}
+```
+
+## Performance Implementation Patterns
+
+### Lazy Rendering for Large Data Sets
+
+```typescript
+// Virtual scrolling pattern for large lists
+private renderLargeList(items: DataItem[]): TemplateResult {
+    const ITEMS_PER_PAGE = 50;
+    const currentPage = this.currentPage || 0;
+    const startIndex = currentPage * ITEMS_PER_PAGE;
+    const visibleItems = items.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+    return html`
+        <div class="large-list">
+            ${visibleItems.map(item => this.renderItem(item))}
+            ${this.renderPagination(items.length, ITEMS_PER_PAGE, currentPage)}
+        </div>
+    `;
+}
+
+// Efficient toggle implementation
+private toggleContent = (e: Event): void => {
+    const header = e.currentTarget as HTMLElement;
+    const content = header.nextElementSibling as HTMLElement;
+
+    if (content) {
+        // Use display toggle for better performance than classList
+        const isHidden = content.style.display === 'none';
+        content.style.display = isHidden ? 'block' : 'none';
+
+        // Update arrow indicator
+        const arrow = header.querySelector('.toggle-icon');
+        if (arrow) {
+            arrow.textContent = isHidden ? '▲' : '▼';
+        }
+    }
+}
+```
+
+### Memory Management
+
+```typescript
+// Cleanup pattern for event listeners
+disconnectedCallback(): void {
+    super.disconnectedCallback();
+
+    // Remove any external event listeners
+    if (this.resizeObserver) {
+        this.resizeObserver.disconnect();
+    }
+
+    // Clear any timers or intervals
+    if (this.refreshTimer) {
+        clearInterval(this.refreshTimer);
+    }
+}
+
+// Efficient data caching
+private dataCache = new Map<string, ProcessedData>();
+
+private getProcessedData(key: string, rawData: RawData[]): ProcessedData {
+    if (this.dataCache.has(key)) {
+        return this.dataCache.get(key)!;
+    }
+
+    const processed = this.processData(rawData);
+    this.dataCache.set(key, processed);
+    return processed;
+}
+```
+
+## Testing Patterns for Components
+
+### Component Testing Utilities
+
+```typescript
+// Test helper for component setup
+export function setupComponent<T extends LitElement>(ComponentClass: new () => T, props: Partial<T> = {}): T {
+	const component = new ComponentClass();
+	Object.assign(component, props);
+
+	document.body.appendChild(component);
+	return component;
+}
+
+// Mock data generators
+export function createMockConversation(): SimpleConversation {
+	return {
+		id: crypto.randomUUID(),
+		messages: [createMockMessage()],
+		model: "claude-3-sonnet-20240229",
+		systemPrompt: "Test system prompt",
+	};
+}
+
+// Async testing pattern
+export async function testComponentRender<T extends LitElement>(component: T, expectedContent: string): Promise<void> {
+	await component.updateComplete;
+	const content = component.shadowRoot?.textContent || component.textContent;
+	assert(content?.includes(expectedContent), "Component should render expected content");
+}
+```
+
+## Accessibility Implementation
+
+### Keyboard Navigation
+
+```typescript
+// Keyboard event handling
+private handleKeyDown = (e: KeyboardEvent): void => {
+    switch (e.key) {
+        case 'Enter':
+        case ' ':
+            e.preventDefault();
+            this.toggleContent(e);
+            break;
+        case 'ArrowDown':
+            e.preventDefault();
+            this.focusNext();
+            break;
+        case 'ArrowUp':
+            e.preventDefault();
+            this.focusPrevious();
+            break;
+    }
+}
+
+// ARIA attributes for screen readers
+private renderAccessibleButton(content: string, expanded: boolean): TemplateResult {
+    return html`
+        <button
+            class="accessible-toggle"
+            aria-expanded=${expanded}
+            aria-controls="content-section"
+            @keydown=${this.handleKeyDown}
+        >
+            ${content}
+        </button>
+    `;
+}
+```
+
+This implementation guide provides practical patterns and code examples for developing, maintaining, and extending the Claude Trace component library with proper type safety, security, performance, and accessibility considerations.

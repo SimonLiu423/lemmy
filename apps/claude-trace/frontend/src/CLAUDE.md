@@ -1,43 +1,61 @@
-# Frontend Source Directory
+# Frontend Source Implementation
 
 ## Overview
 
-The `frontend/src/` directory contains the complete frontend application for Claude Trace, a web-based visualization tool for analyzing AI model conversations and API interactions. Built with modern web technologies including Lit web components, TypeScript, and Tailwind CSS, this directory provides a comprehensive solution for visualizing conversation traces, raw API calls, and processed data from various AI models.
+The `frontend/src/` directory contains the complete implementation of the Claude Trace web application. This directory focuses on practical implementation details, code patterns, and specific technical guidance for developing and maintaining the frontend components.
 
-The frontend follows a component-based architecture with strict type safety, avoiding `any` types in favor of proper TypeScript interfaces and leveraging official SDK types from `@anthropic-ai/sdk`. The application emphasizes security through XSS prevention, performance through efficient rendering, and usability through interactive data exploration.
-
-## Structure
+## Implementation Structure
 
 ```
 frontend/src/
-├── app.ts                          # Main application component and state management
-├── index.ts                        # Application entry point and initialization
-├── styles.css                      # Global styles and markdown formatting
-├── components/                     # UI component library
-│   ├── CLAUDE.md                   # Component documentation
-│   ├── json-view.ts                # JSON data visualization component
-│   ├── raw-pairs-view.ts           # Raw API request/response viewer
-│   └── simple-conversation-view.ts # Primary conversation display component
-└── utils/                          # Utility functions and helpers
-    ├── CLAUDE.md                   # Utilities documentation
-    └── markdown.ts                 # Secure markdown to HTML conversion
+├── app.ts                          # Main application component implementation
+├── index.ts                        # Application bootstrap and initialization
+├── styles.css                      # Global styles and VS Code theme implementation
+├── components/                     # Component implementations
+│   ├── simple-conversation-view.ts # Primary conversation visualization
+│   ├── raw-pairs-view.ts           # API debugging interface
+│   └── json-view.ts                # JSON data viewer
+└── utils/                          # Utility implementations
+    └── markdown.ts                 # Secure markdown processing
 ```
 
-## Key Components
+## Core Implementation Components
+
+### Application Entry Point (`index.ts`)
+
+**Implementation Pattern**: Dynamic CSS injection with DOM ready handling
+
+```typescript
+// CSS injection pattern using build-time variable substitution
+const cssContent = `___CSS_CONTENT___`; // Replaced during build
+const style = document.createElement("style");
+style.textContent = cssContent;
+document.head.appendChild(style);
+
+// Component registration and initialization
+import "./components/simple-conversation-view";
+import "./components/raw-pairs-view";
+import "./components/json-view";
+
+function initApp() {
+	const app = new ClaudeApp();
+	const appElement = document.getElementById("app");
+	if (appElement) {
+		appElement.appendChild(app);
+	}
+}
+```
+
+**Key Implementation Details**:
+
+- CSS injection happens before component registration to prevent FOUC
+- DOM ready detection works for both interactive and complete states
+- Error handling provides fallback when mount point is missing
+- Component imports trigger custom element registration
 
 ### Main Application (`app.ts`)
 
-**Purpose**: The root application component that orchestrates the entire frontend experience, managing state, data processing, and view switching.
-
-**Core Functionality**:
-
-- **Data Processing**: Integrates with `SharedConversationProcessor` to transform raw API data into structured conversations
-- **View Management**: Provides tab-based navigation between conversations, raw calls, and JSON debug views
-- **Model Filtering**: Dynamic filtering by AI model type with multi-selection support
-- **State Management**: Reactive state updates using Lit's `@state` decorator
-- **Performance Monitoring**: Built-in timing for data processing operations
-
-**Key Features**:
+**Implementation Pattern**: Lit component with reactive state management
 
 ```typescript
 @customElement("claude-app")
@@ -47,198 +65,124 @@ export class ClaudeApp extends LitElement {
 	@state() private processedPairs: ProcessedPair[] = [];
 	@state() private currentView: "conversations" | "raw" | "json" = "conversations";
 	@state() private selectedModels: Set<string> = new Set();
-}
-```
 
-**Data Flow**:
+	createRenderRoot() {
+		return this; // Disable Shadow DOM for global CSS access
+	}
 
-1. Loads data from global `window.claudeData` object
-2. Processes raw pairs through `SharedConversationProcessor`
-3. Generates filtered views based on selected models
-4. Provides real-time counts and statistics
+	protected async firstUpdated() {
+		await this.loadAndProcessData();
+	}
 
-**Type Safety**: Uses proper `ClaudeData`, `SimpleConversation`, and `ProcessedPair` types throughout, avoiding any use of `any` types.
+	private async loadAndProcessData() {
+		const start = performance.now();
 
-### Application Entry Point (`index.ts`)
+		// Data loading from global scope
+		if ((window as any).claudeData) {
+			this.data = (window as any).claudeData;
 
-**Purpose**: Application bootstrap and initialization logic with dynamic CSS injection.
+			// Process data through shared processor
+			const processor = new SharedConversationProcessor();
+			this.processedPairs = processor.processRawPairs(this.data.rawPairs);
 
-**Key Features**:
+			const rawConversations = processor.mergeConversations(this.processedPairs);
+			this.conversations = processor.detectAndMergeCompactConversations(rawConversations);
+		}
 
-- **Component Registration**: Imports and registers all custom web components
-- **CSS Injection**: Dynamic stylesheet loading via build-time variable substitution
-- **DOM Ready Handling**: Proper initialization timing for both loaded and loading states
-- **Error Handling**: Graceful fallback when mount point is not found
-
-**Initialization Pattern**:
-
-```typescript
-function initApp() {
-	const app = new ClaudeApp();
-	const appElement = document.getElementById("app");
-	if (appElement) {
-		appElement.appendChild(app);
-	} else {
-		console.error("App mount point not found");
+		console.log(`Data processing completed in ${performance.now() - start}ms`);
 	}
 }
 ```
 
-### Global Styles (`styles.css`)
+**Critical Implementation Details**:
 
-**Purpose**: Defines the visual identity and theming for the entire application using VS Code dark theme colors and Tailwind CSS utilities.
+- **Shadow DOM Disabled**: `createRenderRoot()` returns `this` to access global Tailwind CSS
+- **Performance Monitoring**: Built-in timing for data processing operations
+- **Type Safety**: Strict typing with proper interfaces, avoiding `any` types
+- **Data Processing Pipeline**: Uses shared processor for consistency with backend
+- **Reactive Updates**: `@state()` decorator triggers automatic re-rendering
 
-**Key Features**:
+### Global Styles Implementation (`styles.css`)
 
-- **VS Code Theme Integration**: Consistent color scheme matching VS Code dark theme
-- **Markdown Styling**: Terminal-style formatting for markdown content with proper typography
-- **Typography Hierarchy**: Structured heading levels with consistent spacing
-- **Code Formatting**: Syntax highlighting and proper monospace font handling
-- **List Styling**: Custom bullet points and numbering for terminal aesthetics
-- **Responsive Design**: Word wrapping and overflow handling for various screen sizes
+**VS Code Theme Variables Implementation**:
 
-**Color Scheme**:
-
-- Background: `#1e1e1e` (vs-bg)
-- Text: Various VS Code theme colors for syntax highlighting
-- Function: `#dcdcaa` (vs-function)
-- Assistant: `#ce9178` (vs-assistant)
-- Accent: `#569cd6` (vs-accent)
-
-## Dependencies
-
-### Internal Dependencies
-
-- `../../src/shared-conversation-processor` - Core data processing and type definitions
-- `../../src/types` - Application-wide TypeScript type definitions
-- `./components/*` - UI component modules
-- `./utils/*` - Utility function modules
-
-### External Dependencies
-
-- **`lit`** - Lightweight web components framework for reactive UI
-- **`lit/decorators.js`** - Property and state decorators for component reactivity
-- **`@anthropic-ai/sdk`** - Official Anthropic SDK types for API data structures
-- **`marked`** - High-performance markdown parser (used via utils)
-- **`diff`** - Text diffing library for edit visualization (used in components)
-
-### Build Dependencies
-
-- **Tailwind CSS** - Utility-first CSS framework for styling
-- **TypeScript** - Type safety and modern JavaScript features
-- **tsup** - Build tooling for TypeScript compilation and bundling
-
-## Patterns & Conventions
-
-### Component Architecture
-
-- **Lit Web Components**: Modern custom elements with efficient rendering and change detection
-- **Shadow DOM Disabled**: Components use `createRenderRoot() { return this; }` to access global Tailwind CSS
-- **Reactive Properties**: `@property()` and `@state()` decorators for automatic re-rendering
-- **Type Safety**: Strict TypeScript with proper interface definitions, no `any` types
-- **Event Handling**: Type-safe event listeners with proper Event typing
-
-### Type Safety Standards
-
-- **SDK Type Integration**: Direct import and usage of `@anthropic-ai/sdk` types
-- **Interface Definitions**: Custom interfaces for application-specific data structures
-- **Type Guards**: Runtime type validation where necessary
-- **Null Safety**: Proper null/undefined handling throughout all components
-- **Generic Avoidance**: Specific types preferred over generic `any` usage
-
-### State Management
-
-- **Centralized State**: Main application state managed in `ClaudeApp` component
-- **Reactive Updates**: Lit's reactive system handles UI updates automatically
-- **Derived State**: Computed properties for filtered data and statistics
-- **Immutable Updates**: State changes create new objects rather than mutating existing ones
-
-### Security Practices
-
-- **XSS Prevention**: All user content processed through secure markdown utility
-- **Input Validation**: Type checking and safe parsing for all external data
-- **HTML Escaping**: Comprehensive entity escaping before any HTML rendering
-- **Content Security**: Use of `unsafeHTML` directive only with pre-sanitized content
-
-### Performance Optimizations
-
-- **Change Detection**: Efficient Lit rendering with property-based change detection
-- **Lazy Loading**: Components render content on-demand with collapsible sections
-- **Memory Management**: Proper cleanup and no memory leaks in event handlers
-- **Bundle Size**: Tree-shaking friendly ES modules for optimal bundle size
-
-## Usage Examples
-
-### Basic Application Setup
-
-```typescript
-// Initialize the application
-import { ClaudeApp } from "./app";
-import "./components/simple-conversation-view";
-import "./components/raw-pairs-view";
-import "./components/json-view";
-
-// Application automatically loads data from window.claudeData
-const app = new ClaudeApp();
-document.getElementById("app")?.appendChild(app);
+```css
+:root {
+	--vs-bg: #1e1e1e;
+	--vs-bg-secondary: #2d2d30;
+	--vs-text: #d4d4d4;
+	--vs-text-muted: #8c8c8c;
+	--vs-function: #dcdcaa;
+	--vs-type: #4ec9b0;
+	--vs-string: #ce9178;
+	--vs-assistant: #ce9178;
+	--vs-accent: #569cd6;
+}
 ```
 
-### Data Integration Pattern
+**Markdown Styling Implementation**:
 
-```typescript
-// Data flow from raw API data to rendered components
-const processor = new SharedConversationProcessor();
-const processedPairs = processor.processRawPairs(rawPairs);
-const conversations = processor.mergeConversations(processedPairs);
+```css
+.markdown-content {
+	line-height: 1.6;
+	word-wrap: break-word;
+}
 
-// Components automatically update when data changes
-html`<simple-conversation-view .conversations=${conversations}></simple-conversation-view>`;
+.markdown-content h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+	color: var(--vs-accent);
+	margin: 1.5em 0 0.5em 0;
+	font-weight: 600;
+}
+
+.markdown-content pre {
+	background-color: var(--vs-bg-secondary);
+	padding: 1rem;
+	border-radius: 0.375rem;
+	overflow-x: auto;
+	border: 1px solid #3c3c3c;
+}
 ```
 
-### Custom Component Integration
+**Implementation Notes**:
+
+- CSS custom properties enable dynamic theming
+- Terminal-style aesthetics with monospace fonts for code blocks
+- Proper contrast ratios for accessibility compliance
+- Responsive design with word wrapping and overflow handling
+
+## Component Implementation Patterns
+
+### Lit Component Base Pattern
+
+**Standard Component Structure**:
 
 ```typescript
-// Adding new components to the application
-@customElement("custom-view")
-export class CustomView extends LitElement {
-	@property({ type: Array }) data: CustomData[] = [];
+@customElement("component-name")
+export class ComponentName extends LitElement {
+	@property({ type: Array }) data: DataType[] = [];
 
 	createRenderRoot() {
 		return this; // Access global CSS
 	}
 
 	render() {
-		return html`
-			<div class="custom-component">
-				<!-- Component content -->
-			</div>
-		`;
+		return html` <div class="component-container">${this.data.map((item) => this.renderItem(item))}</div> `;
+	}
+
+	private renderItem(item: DataType): TemplateResult {
+		return html`<div class="item">${item.content}</div>`;
 	}
 }
 ```
 
-## Type Safety Implementation
+### Event Handling Implementation
 
-### Critical Type Safety Features
-
-The frontend strictly adheres to TypeScript best practices:
-
-1. **No `any` Types**: All data structures use proper interfaces
-2. **SDK Integration**: Official `@anthropic-ai/sdk` types for API data
-3. **Runtime Validation**: Type guards for dynamic content
-4. **Null Safety**: Explicit null/undefined handling
-
-### Type Definitions Usage
-
-```typescript
-import type { MessageParam, ContentBlock, Message } from "@anthropic-ai/sdk/resources/messages";
-
-import { SimpleConversation, ProcessedPair, EnhancedMessageParam } from "../../src/shared-conversation-processor";
-
-import { ClaudeData, RawPair } from "../../src/types";
-```
-
-### Type-Safe Event Handling
+**Type-Safe Event Handling Pattern**:
 
 ```typescript
 private handleToggle(e: Event, options: {
@@ -247,45 +191,269 @@ private handleToggle(e: Event, options: {
     customHandler?: (element: HTMLElement, isHidden: boolean) => void;
 } = {}) {
     const currentElement = e.currentTarget as HTMLElement;
-    // Type-safe element manipulation
+    const { type = "content", targetSelector, customHandler } = options;
+
+    const nextElement = targetSelector
+        ? currentElement.parentElement?.querySelector(targetSelector)
+        : currentElement.nextElementSibling;
+
+    if (nextElement instanceof HTMLElement) {
+        const isHidden = nextElement.style.display === "none";
+        nextElement.style.display = isHidden ? "block" : "none";
+
+        if (customHandler) {
+            customHandler(nextElement, isHidden);
+        }
+    }
 }
 ```
 
-## Notes
+**Implementation Notes**:
 
-### Performance Characteristics
+- Proper TypeScript typing for event objects and DOM elements
+- Flexible options pattern for different toggle behaviors
+- Type guards for safe DOM manipulation
+- Custom handler support for specialized behaviors
 
-- **Efficient Rendering**: Lit's reactive system minimizes DOM updates
-- **Memory Usage**: Components properly clean up event listeners and references
-- **Bundle Size**: Tree-shaking enabled for optimal production builds
-- **Load Time**: Dynamic CSS injection and lazy component loading
+### Data Processing Implementation
 
-### Browser Support
+**Type-Safe Data Transformation Pattern**:
 
-- **Modern Browsers**: Requires ES2020+ support for modules and custom elements
-- **Web Components**: Uses native custom elements API
-- **CSS Support**: Requires CSS custom properties for theming
-- **JavaScript Features**: Uses modern syntax including optional chaining and nullish coalescing
+```typescript
+private processConversationData(conversations: SimpleConversation[]): ProcessedConversation[] {
+    return conversations.map(conversation => ({
+        ...conversation,
+        id: conversation.id || crypto.randomUUID(),
+        timestamp: conversation.messages[0]?.timestamp || Date.now(),
+        messageCount: conversation.messages.length,
+        toolCalls: this.extractToolCalls(conversation),
+        systemPrompt: this.extractSystemPrompt(conversation)
+    }));
+}
 
-### Development Experience
+private extractToolCalls(conversation: SimpleConversation): ToolCallInfo[] {
+    return conversation.messages
+        .flatMap(message => message.content || [])
+        .filter((content): content is ToolUseBlockParam => content.type === 'tool_use')
+        .map(toolUse => ({
+            id: toolUse.id,
+            name: toolUse.name,
+            input: toolUse.input
+        }));
+}
+```
 
-- **Hot Reload**: Development server supports live reloading
-- **Type Checking**: Full TypeScript integration with IDE support
-- **Debugging**: Source maps enabled for development builds
-- **Testing**: Components designed for testability with clear interfaces
+## Security Implementation Details
 
-### Security Considerations
+### XSS Prevention Implementation
 
-- **Content Security Policy**: Compatible with strict CSP requirements
-- **XSS Prevention**: Multi-layered protection against script injection
-- **Data Validation**: All external data validated before processing
-- **Secure Defaults**: Safe configuration for all third-party libraries
+**Secure Content Processing Pattern**:
 
-### Accessibility Features
+```typescript
+import { markdownToHtml } from '../utils/markdown';
 
-- **Keyboard Navigation**: All interactive elements support keyboard access
-- **Screen Readers**: Semantic HTML structure for assistive technology
-- **Color Contrast**: VS Code theme ensures adequate contrast ratios
-- **Focus Management**: Proper focus handling for dynamic content
+private renderUserContent(content: string): TemplateResult {
+    // Content is processed through secure markdown utility
+    const safeHtml = markdownToHtml(content);
 
-The frontend/src/ directory represents a mature, production-ready frontend application that successfully balances developer experience, performance, security, and maintainability while providing powerful tools for analyzing AI conversation data.
+    // Safe to use unsafeHTML because content is pre-sanitized
+    return html`<div class="user-content">${unsafeHTML(safeHtml)}</div>`;
+}
+
+private renderSystemContent(content: string): TemplateResult {
+    // Direct HTML escaping for non-markdown content
+    return html`<div class="system-content">${content}</div>`;
+}
+```
+
+**Implementation Notes**:
+
+- All user content processed through secure markdown utility
+- `unsafeHTML` directive used only with pre-sanitized content
+- Direct HTML escaping for non-markdown content
+- Clear separation between user and system content processing
+
+### Input Validation Implementation
+
+**Runtime Type Validation Pattern**:
+
+```typescript
+private validateConversationData(data: unknown): data is ClaudeData {
+    if (!data || typeof data !== 'object') {
+        return false;
+    }
+
+    const claudeData = data as ClaudeData;
+
+    return Array.isArray(claudeData.rawPairs) &&
+           claudeData.rawPairs.every(pair =>
+               pair.request && pair.response &&
+               typeof pair.request.url === 'string'
+           );
+}
+
+private loadData(): void {
+    const windowData = (window as any).claudeData;
+
+    if (this.validateConversationData(windowData)) {
+        this.data = windowData;
+    } else {
+        console.error('Invalid conversation data format');
+        this.data = { rawPairs: [] };
+    }
+}
+```
+
+## Performance Implementation Details
+
+### Efficient Rendering Patterns
+
+**Lazy Rendering Implementation**:
+
+```typescript
+private renderConversations(): TemplateResult[] {
+    const visibleConversations = this.getFilteredConversations();
+
+    return visibleConversations.map(conversation => html`
+        <div class="conversation" @click=${this.handleConversationClick}>
+            <div class="conversation-header">
+                ${this.renderConversationSummary(conversation)}
+            </div>
+            <div class="conversation-details" style="display: none;">
+                ${this.renderConversationDetails(conversation)}
+            </div>
+        </div>
+    `);
+}
+
+private handleConversationClick(e: Event): void {
+    const details = (e.currentTarget as HTMLElement)
+        .querySelector('.conversation-details') as HTMLElement;
+
+    if (details.style.display === 'none') {
+        // Lazy load detailed content only when expanded
+        details.style.display = 'block';
+    } else {
+        details.style.display = 'none';
+    }
+}
+```
+
+### Memory Management Implementation
+
+**Efficient State Management Pattern**:
+
+```typescript
+private getFilteredData(): FilteredData {
+    // Use memoization to avoid recomputing filtered data
+    const cacheKey = Array.from(this.selectedModels).sort().join(',');
+
+    if (this.filteredDataCache?.key === cacheKey) {
+        return this.filteredDataCache.data;
+    }
+
+    const filteredData = {
+        conversations: this.conversations.filter(conv =>
+            this.selectedModels.size === 0 ||
+            this.selectedModels.has(conv.model)
+        ),
+        rawPairs: this.processedPairs.filter(pair =>
+            this.selectedModels.size === 0 ||
+            this.selectedModels.has(pair.model)
+        )
+    };
+
+    this.filteredDataCache = { key: cacheKey, data: filteredData };
+    return filteredData;
+}
+```
+
+## Testing Implementation Patterns
+
+### Component Testing Setup
+
+**Test Component Implementation Pattern**:
+
+```typescript
+// Test helper for component testing
+export function createTestComponent<T extends LitElement>(componentClass: new () => T, properties: Partial<T> = {}): T {
+	const component = new componentClass();
+
+	// Set properties
+	Object.assign(component, properties);
+
+	// Mount to test container
+	const container = document.createElement("div");
+	container.appendChild(component);
+	document.body.appendChild(container);
+
+	return component;
+}
+
+// Usage example
+const conversationView = createTestComponent(SimpleConversationView, {
+	conversations: mockConversations,
+});
+
+await conversationView.updateComplete;
+```
+
+### Type Safety Testing
+
+**Type Guard Testing Pattern**:
+
+```typescript
+// Type guard testing utility
+function assertType<T>(value: unknown, typeName: string): asserts value is T {
+    if (!isValidType<T>(value)) {
+        throw new Error(`Expected ${typeName}, received ${typeof value}`);
+    }
+}
+
+// Usage in components
+private processSafeData(data: unknown): ProcessedData {
+    assertType<ClaudeData>(data, 'ClaudeData');
+
+    // TypeScript now knows data is ClaudeData
+    return this.processClaudeData(data);
+}
+```
+
+## Build Integration Implementation
+
+### Development Build Configuration
+
+```typescript
+// tsup.config.ts implementation details
+export default defineConfig({
+	entry: ["src/index.ts"],
+	format: ["iife"],
+	globalName: "ClaudeApp",
+	outDir: "dist",
+	sourcemap: "inline",
+	minify: false, // Development build
+	define: {
+		___CSS_CONTENT___: JSON.stringify(cssContent),
+	},
+});
+```
+
+### Production Build Optimization
+
+```typescript
+// Production build configuration
+export default defineConfig({
+	entry: ["src/index.ts"],
+	format: ["iife"],
+	globalName: "ClaudeApp",
+	outDir: "dist",
+	sourcemap: false,
+	minify: true,
+	treeshake: true,
+	define: {
+		___CSS_CONTENT___: JSON.stringify(minifiedCss),
+	},
+});
+```
+
+This implementation documentation provides practical guidance for developing, maintaining, and extending the Claude Trace frontend source code with proper type safety, security measures, and performance optimizations.

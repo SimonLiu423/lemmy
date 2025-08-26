@@ -1,301 +1,350 @@
-# Claude Trace - Source Directory
+# Claude Trace Backend System
 
 ## Overview
 
-The `src/` directory contains the core implementation of Claude Trace, a TypeScript-based tool for intercepting, logging, and analyzing Claude API interactions. This directory provides the complete toolkit for monitoring Claude conversations, extracting OAuth tokens, generating HTML reports, and creating conversation summaries.
+The `src/` directory contains the complete backend implementation of Claude Trace - a sophisticated TypeScript-based system for intercepting, processing, and analyzing Claude API interactions. This backend provides the core infrastructure for traffic interception, conversation processing, report generation, and token management.
 
 ## Architecture
 
-The codebase follows a modular architecture with clear separation of concerns:
+The backend follows a modular architecture with clear separation of concerns and well-defined interfaces between components:
 
-- **CLI Interface** (`cli.ts`) - Main entry point handling command-line arguments and orchestrating different modes
-- **Traffic Interception** (`interceptor.ts`, `interceptor-loader.js`) - Core networking interception for Claude API calls
-- **Token Extraction** (`token-extractor.js`) - OAuth token capture from Claude API requests
-- **Report Generation** (`html-generator.ts`) - Converts JSONL logs to interactive HTML reports
-- **Data Processing** (`shared-conversation-processor.ts`) - Shared conversation parsing and analysis logic
-- **Index Generation** (`index-generator.ts`) - Creates conversation summaries and index pages
-- **Type Definitions** (`types.ts`) - Complete TypeScript type definitions
-- **Module Exports** (`index.ts`) - Main package entry point and exports
+```
+src/
+├── cli.ts                           # Main CLI orchestrator and entry point
+├── interceptor.ts                   # Network traffic interception engine
+├── interceptor-loader.js            # TypeScript interceptor loader
+├── token-extractor.js               # OAuth token capture utility
+├── html-generator.ts                # HTML report generation
+├── index-generator.ts               # AI-powered conversation indexing
+├── shared-conversation-processor.ts # Core conversation analysis engine
+├── types.ts                         # Complete TypeScript type definitions
+└── index.ts                         # Package entry point and exports
+```
 
-## Key Components
+## Core Components
 
 ### CLI Interface (`cli.ts`)
 
-The main command-line interface providing four operational modes:
+**Purpose**: Main orchestrator that handles command-line arguments and coordinates all backend operations.
+
+**Operational Modes**:
 
 1. **Interactive Logging**: Spawns Claude with traffic interception enabled
-2. **Token Extraction**: Captures OAuth tokens for SDK usage
-3. **HTML Generation**: Converts JSONL logs to interactive HTML reports
-4. **Index Generation**: Creates conversation summaries and directory indexes
+2. **Token Extraction**: Captures OAuth tokens for SDK development
+3. **HTML Generation**: Converts JSONL logs to interactive reports
+4. **Index Generation**: Creates AI-powered conversation summaries
 
-**Key Functions:**
+**Key Implementation Details**:
 
-- `runClaudeWithInterception()` - Launches Claude with network interception
-- `extractToken()` - Extracts OAuth tokens using token interceptor
-- `generateHTMLFromCLI()` - Processes JSONL files into HTML reports
-- `generateIndex()` - Creates conversation index with summaries
+- **Claude Binary Resolution**: Automatically detects Claude installations including symlinks and wrapper scripts
+- **Process Management**: Spawns child processes with proper signal forwarding and cleanup
+- **Environment Configuration**: Supports extensive environment variable customization
+- **Error Handling**: Graceful degradation with comprehensive error reporting
+- **Cross-platform Support**: Works on macOS, Linux, and Windows with platform-specific adaptations
 
-**Important Features:**
+**Critical Functions**:
 
-- Automatic Claude binary resolution with symlink and wrapper support
-- Environment variable configuration for logging behavior
-- Signal handling for graceful shutdown
-- Cross-platform compatibility
+```typescript
+async function runClaudeWithInterception(args: string[], options: CLIOptions): Promise<void>;
+async function extractToken(options: TokenExtractionOptions): Promise<string>;
+async function generateHTMLFromCLI(inputPath: string, outputPath: string, options: HTMLOptions): Promise<void>;
+async function generateIndex(options: IndexOptions): Promise<void>;
+```
 
 ### Traffic Interceptor (`interceptor.ts`)
 
-Core networking interception system that captures Claude API traffic in real-time.
+**Purpose**: Advanced networking interception system that captures Claude API traffic in real-time without interfering with normal operations.
 
-**ClaudeTrafficLogger Class:**
+**Core Architecture**:
 
-- `instrumentFetch()` - Intercepts global fetch calls
-- `instrumentNodeHTTP()` - Intercepts Node.js http/https modules
-- `isClaudeAPI()` - Filters requests to Claude endpoints (Anthropic & Bedrock)
-- `generateHTML()` - Real-time HTML generation during logging
+```typescript
+export class ClaudeTrafficLogger {
+	private logFile: fs.WriteStream;
+	private htmlGenerator?: HTMLGenerator;
 
-**Security Features:**
+	constructor(options: LoggerOptions) {
+		/* ... */
+	}
 
-- `redactSensitiveHeaders()` - Automatic redaction of authentication tokens
-- Configurable request filtering (all vs. message-only requests)
-- Safe error handling to prevent interference with Claude operations
+	public instrumentFetch(): void {
+		/* Global fetch interception */
+	}
+	public instrumentNodeHTTP(): void {
+		/* Node.js HTTP module interception */
+	}
+	public generateHTML(): Promise<void> {
+		/* Real-time HTML generation */
+	}
+}
+```
 
-**Supported APIs:**
+**Advanced Features**:
 
-- Anthropic API (`api.anthropic.com/v1/messages`)
-- AWS Bedrock Claude API (`bedrock-runtime.*.amazonaws.com`)
-- Custom `ANTHROPIC_BASE_URL` support
+- **Multi-API Support**: Handles Anthropic API, AWS Bedrock, and custom `ANTHROPIC_BASE_URL` configurations
+- **Streaming Support**: Processes both standard SSE and Bedrock binary EventStream formats
+- **Security Features**: Automatic redaction of authentication tokens and sensitive headers
+- **Performance Optimization**: Minimal overhead through selective URL filtering and asynchronous processing
+- **Error Isolation**: Prevents interceptor errors from affecting Claude Code operations
+
+**Supported API Endpoints**:
+
+- `api.anthropic.com/v1/messages` (Anthropic API)
+- `bedrock-runtime.*.amazonaws.com` (AWS Bedrock)
+- Custom endpoints via `ANTHROPIC_BASE_URL`
+
+### Conversation Processor (`shared-conversation-processor.ts`)
+
+**Purpose**: Sophisticated conversation analysis engine shared between backend and frontend components.
+
+**Core Processing Pipeline**:
+
+1. **Raw Pair Processing**: Converts HTTP request/response pairs to structured data
+2. **Stream Parsing**: Handles both Anthropic SSE and Bedrock binary formats
+3. **Conversation Merging**: Groups related requests into conversation threads
+4. **Tool Analysis**: Pairs tool calls with results and tracks usage patterns
+5. **Compact Detection**: Identifies and merges continuation sessions
+
+**Key Classes and Methods**:
+
+```typescript
+export class SharedConversationProcessor {
+	public processRawPairs(rawPairs: RawPair[]): ProcessedPair[];
+	public parseStreamingResponse(response: any): ParsedStreamResponse;
+	public mergeConversations(pairs: ProcessedPair[]): SimpleConversation[];
+	public detectAndMergeCompactConversations(conversations: SimpleConversation[]): SimpleConversation[];
+}
+```
+
+**Advanced Features**:
+
+- **Multi-format Streaming**: Handles both text-based SSE and binary EventStream protocols
+- **Token Usage Extraction**: Comprehensive tracking across all API response formats
+- **Message Deduplication**: Intelligent handling of repeated or partial messages
+- **Temporal Grouping**: Time-based conversation thread detection
+- **Tool Intelligence**: Sophisticated pairing of tool calls with their execution results
 
 ### HTML Generator (`html-generator.ts`)
 
-Converts JSONL logs into interactive HTML reports with embedded JavaScript viewer.
+**Purpose**: Creates self-contained, interactive HTML reports with embedded frontend application.
 
-**HTMLGenerator Class:**
+**Architecture**:
 
-- `generateHTML()` - Creates HTML from raw pairs with embedded frontend
-- `generateHTMLFromJSONL()` - Batch processes JSONL files
-- `prepareDataForInjection()` - Base64-encodes data for safe HTML embedding
+```typescript
+export class HTMLGenerator {
+	private frontendBundle: string;
+	private template: string;
 
-**Template System:**
+	public async generateHTML(pairs: RawPair[], outputPath: string): Promise<void>;
+	public async generateHTMLFromJSONL(jsonlPath: string, outputPath: string): Promise<void>;
+	private prepareDataForInjection(data: ClaudeData): string;
+}
+```
 
-- Uses placeholder replacement with unique markers
-- Embeds pre-built frontend bundle (`frontend/dist/index.global.js`)
-- Handles data injection via base64 encoding to avoid escaping issues
+**Template System**:
 
-### Shared Conversation Processor (`shared-conversation-processor.ts`)
+- **Placeholder Replacement**: Uses unique markers (`___CLAUDE_DATA_PLACEHOLDER___`) to avoid conflicts
+- **Data Embedding**: Base64-encoded JSON injection for security and reliability
+- **Bundle Integration**: Embeds complete frontend JavaScript and CSS bundles
+- **Real-time Generation**: Supports live HTML updates during logging sessions
 
-Advanced conversation parsing and analysis shared between frontend and backend.
+**Security Features**:
 
-**SharedConversationProcessor Class:**
-
-- `processRawPairs()` - Converts raw JSONL pairs to structured conversations
-- `parseStreamingResponse()` - Handles both standard and Bedrock streaming formats
-- `mergeConversations()` - Groups related requests into conversation threads
-- `detectAndMergeCompactConversations()` - Identifies and merges continuation sessions
-
-**Streaming Support:**
-
-- Standard Anthropic SSE format parsing
-- AWS Bedrock binary EventStream format support
-- Automatic stream format detection
-- Token usage extraction from both formats
-
-**Conversation Intelligence:**
-
-- Tool use/result pairing and analysis
-- Message deduplication and normalization
-- Temporal conversation grouping
-- Compact conversation detection (session continuations)
+- **XSS Prevention**: Safe data embedding through base64 encoding
+- **Content Isolation**: Proper separation of data and code in generated files
+- **Template Validation**: Ensures all placeholders are properly replaced
 
 ### Index Generator (`index-generator.ts`)
 
-Creates conversation summaries and directory indexes using Claude API for summarization.
+**Purpose**: Creates conversation summaries and directory indexes using Claude API for intelligent summarization.
 
-**IndexGenerator Class:**
+**Core Functionality**:
 
-- `generateIndex()` - Main entry point for index generation
-- `processLogFile()` - Processes individual JSONL files
-- `summarizeConversation()` - Uses Claude CLI to generate summaries
-- `generateIndexHTML()` - Creates static HTML index pages
-
-**Intelligent Processing:**
-
-- Automatic detection of outdated summaries
-- Conversation filtering (excludes short/tool-only conversations)
-- Caching of generated summaries in JSON format
-- HTML index generation with navigation
-
-### Type Definitions (`types.ts`)
-
-Comprehensive TypeScript types ensuring type safety throughout the codebase.
-
-**Core Types:**
-
-- `RawPair` - Raw HTTP request/response pairs from interception
-- `ClaudeData` - Structured conversation data for frontend
-- `ProcessedConversation` - Enhanced conversation with metadata
-- `ProcessedMessage` - Individual messages with tool call information
-- `BedrockBinaryEvent` & `BedrockInvocationMetrics` - Bedrock-specific types
-
-**Template & Processing Types:**
-
-- `HTMLGenerationData` - Data structure for HTML generation
-- `TemplateReplacements` - HTML template placeholder mappings
-- `SSEEvent` - Server-sent event structure
-- `ToolCall` - Tool usage tracking
-
-### Support Files
-
-**Interceptor Loader (`interceptor-loader.js`)**
-
-- CommonJS loader for TypeScript interceptor files
-- Handles both compiled JavaScript and TypeScript execution via `tsx`
-- Fallback loading strategy for different build scenarios
-
-**Token Extractor (`token-extractor.js`)**
-
-- Lightweight OAuth token capture utility
-- Intercepts Authorization headers from Claude API requests
-- Temporary file-based token communication
-- Silent operation to avoid interfering with main Claude process
-
-## Dependencies and Relationships
-
-### Internal Dependencies
-
-```
-cli.ts
-├── html-generator.ts
-├── interceptor.ts (via interceptor-loader.js)
-└── index-generator.ts
-    ├── shared-conversation-processor.ts
-    └── html-generator.ts
-
-interceptor.ts
-├── html-generator.ts
-└── types.ts
-
-html-generator.ts
-├── types.ts
-└── shared-conversation-processor.ts
-
-shared-conversation-processor.ts
-└── types.ts
+```typescript
+export class IndexGenerator {
+	public async generateIndex(logDirectory: string): Promise<void>;
+	private async processLogFile(filePath: string): Promise<ConversationSummary[]>;
+	private async summarizeConversation(conversation: SimpleConversation): Promise<string>;
+	private async generateIndexHTML(summaries: ConversationSummary[]): Promise<void>;
+}
 ```
 
-### External Dependencies
+**Intelligent Processing**:
 
-- `@anthropic-ai/sdk` - Type definitions for Claude API structures
-- `child_process` - Process spawning and management
-- `fs`/`path` - File system operations
-- `tsx` - TypeScript execution support
+- **Automatic Detection**: Identifies outdated summaries and regenerates as needed
+- **Conversation Filtering**: Excludes short conversations and tool-only interactions
+- **Caching Strategy**: JSON-based caching of generated summaries for performance
+- **HTML Generation**: Creates navigable index pages with conversation links
+
+**AI Integration**:
+
+- Uses Claude CLI for summarization to ensure consistency with project tooling
+- Processes conversations through the same analysis pipeline as the frontend
+- Generates contextual summaries that highlight key conversation elements
+
+### Type System (`types.ts`)
+
+**Purpose**: Comprehensive TypeScript type definitions ensuring type safety throughout the backend.
+
+**Core Type Categories**:
+
+1. **Raw Data Types**: `RawPair`, `HTTPRequest`, `HTTPResponse`
+2. **Processed Data Types**: `ProcessedPair`, `ProcessedConversation`, `SimpleConversation`
+3. **Stream Processing**: `SSEEvent`, `BedrockBinaryEvent`, `BedrockInvocationMetrics`
+4. **Template System**: `HTMLGenerationData`, `TemplateReplacements`
+5. **Tool Handling**: `ToolCall`, `ToolResult`, `EnhancedMessageParam`
+
+**Type Safety Implementation**:
+
+- **No `any` Types**: All data structures use proper interfaces
+- **SDK Integration**: Leverages official `@anthropic-ai/sdk` types
+- **Runtime Validation**: Type guards for dynamic content validation
+- **Generic Constraints**: Proper use of TypeScript generics where applicable
+
+### Support Components
+
+#### Interceptor Loader (`interceptor-loader.js`)
+
+**Purpose**: CommonJS loader for TypeScript interceptor files with fallback strategies.
+
+**Implementation**:
+
+```javascript
+const loadInterceptor = (interceptorPath) => {
+	try {
+		// Attempt direct JavaScript execution
+		return require(interceptorPath);
+	} catch (error) {
+		// Fallback to TypeScript execution via tsx
+		return require("tsx/cjs")(interceptorPath);
+	}
+};
+```
+
+#### Token Extractor (`token-extractor.js`)
+
+**Purpose**: Lightweight OAuth token capture utility for SDK development.
+
+**Features**:
+
+- **Silent Operation**: Runs without interfering with main Claude process
+- **Temporary Storage**: File-based token communication with automatic cleanup
+- **Header Interception**: Captures Authorization headers from API requests
+- **Error Resilience**: Graceful handling of extraction failures
 
 ## Configuration and Environment
 
 ### Environment Variables
 
-- `CLAUDE_TRACE_INCLUDE_ALL_REQUESTS` - Include all API requests vs. message-only
-- `CLAUDE_TRACE_OPEN_BROWSER` - Auto-open HTML reports in browser
-- `CLAUDE_TRACE_LOG_NAME` - Custom log file base name
-- `CLAUDE_TRACE_TOKEN_FILE` - Token extraction output file
-- `ANTHROPIC_BASE_URL` - Custom API endpoint support
+The backend supports extensive configuration through environment variables:
+
+```bash
+# Logging Behavior
+CLAUDE_TRACE_INCLUDE_ALL_REQUESTS=true    # Include all API requests vs. message-only
+CLAUDE_TRACE_OPEN_BROWSER=false           # Auto-open HTML reports
+CLAUDE_TRACE_LOG_NAME=custom-session      # Custom log file base name
+
+# API Configuration
+ANTHROPIC_BASE_URL=https://api.custom.com # Custom API endpoint
+
+# Token Management
+CLAUDE_TRACE_TOKEN_FILE=/tmp/token.txt    # Token extraction output file
+```
 
 ### File Structure
 
+The backend creates and manages the following file structure:
+
 ```
 .claude-trace/
-├── log-YYYY-MM-DD-HH-MM-SS.jsonl    # Raw traffic logs
-├── log-YYYY-MM-DD-HH-MM-SS.html     # Generated HTML reports
-├── summary-YYYY-MM-DD-HH-MM-SS.json # Conversation summaries
-├── index.html                        # Master index page
-└── token.txt                         # Temporary token file
+├── log-YYYY-MM-DD-HH-MM-SS.jsonl    # Raw traffic logs in JSONL format
+├── log-YYYY-MM-DD-HH-MM-SS.html     # Interactive HTML reports
+├── summary-YYYY-MM-DD-HH-MM-SS.json # AI-generated conversation summaries
+├── index.html                        # Master index page with navigation
+└── token.txt                         # Temporary OAuth token file
 ```
 
-## Usage Patterns and Entry Points
+## Advanced Implementation Details
 
-### Command Line Interface
+### Network Interception Strategy
 
-```bash
-# Interactive logging
-claude-trace                          # Start Claude with logging
-claude-trace --log my-session         # Custom log name
-claude-trace --run-with chat          # Pass arguments to Claude
+The interceptor uses a multi-layered approach to capture API traffic:
 
-# Token extraction
-claude-trace --extract-token          # Extract OAuth token
+1. **Global Fetch Instrumentation**: Patches the global `fetch` function in Node.js
+2. **HTTP Module Interception**: Instruments Node.js `http` and `https` modules
+3. **URL Filtering**: Selective interception based on Claude API endpoint detection
+4. **Stream Processing**: Real-time parsing of both text and binary streaming formats
 
-# HTML generation
-claude-trace --generate-html file.jsonl  # Convert logs to HTML
-claude-trace --generate-html file.jsonl --no-open  # Skip browser opening
+### Performance Optimizations
 
-# Index generation
-claude-trace --index                  # Generate conversation summaries
-```
+- **Selective Filtering**: Only intercepts requests to known Claude API endpoints
+- **Asynchronous Processing**: Non-blocking request/response handling
+- **Memory Management**: Efficient stream processing without buffering entire responses
+- **Lazy Loading**: On-demand loading of large dependencies
 
-### Programmatic Usage
+### Error Handling Architecture
+
+- **Graceful Degradation**: Silent error handling to avoid disrupting Claude operations
+- **Fallback Strategies**: Multiple approaches for critical operations like token extraction
+- **Comprehensive Cleanup**: Proper resource management and temporary file cleanup
+- **Detailed Logging**: Extensive error reporting for debugging without exposing sensitive data
+
+### Security Implementation
+
+- **Token Redaction**: Automatic removal of authentication headers from logs
+- **Temporary File Security**: Secure handling of token files with automatic cleanup
+- **Input Validation**: Comprehensive validation of external data sources
+- **Error Message Sanitization**: Prevents sensitive information leakage in error messages
+
+## Integration Points
+
+### Frontend Integration
+
+The backend provides data to the frontend through:
+
+- **Data Format**: Standardized `ClaudeData` interface with `rawPairs` and processed conversations
+- **Template System**: HTML generation with embedded frontend bundle
+- **Shared Processing**: Common conversation processing logic via `shared-conversation-processor`
+
+### External Dependencies
 
 ```typescript
-import { ClaudeTrafficLogger, HTMLGenerator } from "claude-trace";
+// Core Dependencies
+import { spawn } from "child_process";
+import { promises as fs } from "fs";
+import { marked } from "marked";
 
-// Initialize interceptor
-const logger = new ClaudeTrafficLogger({
-	logDirectory: ".custom-trace",
-	logBaseName: "my-session",
-	enableRealTimeHTML: true,
-});
-
-// Generate HTML from existing logs
-const htmlGen = new HTMLGenerator();
-await htmlGen.generateHTMLFromJSONL("logs/session.jsonl", "reports/session.html");
+// Type Dependencies
+import type { MessageParam, ContentBlock } from "@anthropic-ai/sdk/resources/messages";
 ```
 
-## Type Safety and Best Practices
+## Testing and Quality Assurance
 
-This codebase adheres to strict TypeScript practices:
+The backend includes comprehensive testing strategies:
 
-- **No `any` types** - All data structures use proper TypeScript types
-- **Comprehensive interfaces** - Every API response and data structure is typed
-- **Error handling** - Graceful degradation with proper error boundaries
-- **Null safety** - Explicit handling of optional and nullable values
-- **Generic type constraints** - Proper use of TypeScript generics where applicable
+- **Unit Tests**: Individual component testing with proper mocking
+- **Integration Tests**: End-to-end testing of interceptor functionality
+- **Type Testing**: Validation of TypeScript type definitions
+- **Performance Testing**: Benchmarking of interception overhead
 
-## Performance Considerations
+## Development and Debugging
 
-### Network Interception
+### Development Workflow
 
-- Minimal overhead through selective URL filtering
-- Asynchronous processing to avoid blocking Claude operations
-- Efficient memory management with streaming response handling
+```bash
+# Backend development
+npm run dev:core              # Watch TypeScript compilation
+npm run typecheck            # Validate types
 
-### File Operations
+# Testing
+npm run test                 # Run interceptor tests
+npm run test:generate        # Test HTML generation
+```
 
-- Incremental JSONL writing for large sessions
-- Lazy loading of conversation data
-- Intelligent caching of generated summaries
+### Debugging Features
 
-### HTML Generation
+- **Verbose Logging**: Detailed operation logging for debugging
+- **Source Maps**: Full source map support for TypeScript debugging
+- **Error Reporting**: Comprehensive error reporting with stack traces
+- **Performance Monitoring**: Built-in timing and performance metrics
 
-- Single-file output with embedded assets for portability
-- Base64 data encoding for injection safety
-- Optimized frontend bundle inclusion
-
-## Error Handling and Reliability
-
-### Graceful Degradation
-
-- Silent error handling during runtime to avoid disrupting Claude
-- Fallback strategies for missing dependencies or files
-- Comprehensive cleanup on process termination
-
-### Data Integrity
-
-- Orphaned request detection and logging
-- JSON parsing error recovery
-- File corruption detection and reporting
-
-### Process Management
-
-- Signal handling for clean shutdown
-- Child process monitoring and cleanup
-- Resource management during long-running sessions
-
-This source directory represents a production-ready TypeScript application with enterprise-grade error handling, type safety, and extensibility. The modular design allows for easy maintenance and feature additions while maintaining backward compatibility with existing log formats.
+This backend system represents a production-ready, enterprise-grade implementation that successfully balances functionality, performance, security, and maintainability while providing comprehensive observability into Claude API interactions.
